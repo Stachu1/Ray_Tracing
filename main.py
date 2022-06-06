@@ -49,8 +49,8 @@ class Camera:
     def generate_ray(self, pixel):
         fov_y = self.fov * self.resolution[1] / self.resolution[0]
         
-        angel_x = pixel[0] * self.fov / (self.resolution[0] - 1) - self.fov / 2
-        angel_y = - pixel[1] * fov_y / (self.resolution[1] - 1) + fov_y / 2
+        angel_x = pixel[0] * self.fov / (self.resolution[0] - 1) - self.fov / 2 + self.rotation[0]
+        angel_y = - pixel[1] * fov_y / (self.resolution[1] - 1) + fov_y / 2 + self.rotation[1]
         
         x = np.sin(angel_x)*np.cos(angel_y)
         y = np.cos(angel_x)*np.cos(angel_y)
@@ -97,11 +97,21 @@ class Camera:
         return d
     
     
-    def check_for_direct_illumination(self, point, scene):
-        illumination = 0.5
+    def get_vector_length(self, vector):
+        return np.sqrt(np.dot(vector, vector))
+    
+    
+    def normalize_vector(self, vector):
+        normalized_vector = vector / max(abs(vector.min()), abs(vector.max()))
+        return normalized_vector
+    
+    
+    def check_for_direct_illumination(self, point, intersecting_sphere, scene):
+        illumination = 0
         for light_source in scene.light_sources:
             light_ray = np.subtract(light_source.position, point)
-            light_ray = light_ray / light_ray.max()
+            light_ray = self.normalize_vector(light_ray)
+            
             ray_blocked = False
             for sphere in scene.spheres:
                 intersection = self.check_for_ray_sphere_intersection(point, light_ray, sphere)
@@ -109,14 +119,14 @@ class Camera:
                     ray_blocked = True
                     break
             if not ray_blocked:
-                illumination = illumination + light_source.brightness
+                normal = np.subtract(point, intersecting_sphere.position)
+                normal = self.normalize_vector(normal)
+                brightness_multiplier = np.dot(light_ray, normal) / (self.get_vector_length(light_ray) * self.get_vector_length(normal))
+                illumination = illumination + (np.power(1 / (self.get_distance(point, light_source.position)), 2) * light_source.brightness) * brightness_multiplier
             if illumination > 1:
                 illumination = 1
         return illumination
             
-                
-            
-    
     
     def render_scene(self, scene):
         img = Image.new("RGB", tuple(self.resolution), (0,0,0))
@@ -133,8 +143,7 @@ class Camera:
                         if rays_length_array[x][y] == 0 or rays_length_array[x][y] > ray_length:
                             rays_length_array[x][y] = ray_length
                             
-                            
-                            illumination = self.check_for_direct_illumination(intersection, scene)
+                            illumination = self.check_for_direct_illumination(intersection, sphere, scene)
                             color = tuple((np.array(sphere.color) * illumination).astype(int))
                             img.putpixel((x, y), color)
         return img
@@ -147,18 +156,17 @@ class Camera:
 t_start = time.time()
 
 
-# camera = Camera(np.array((160, 90)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)))
-camera = Camera(np.array((320, 180)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)))
+camera = Camera(np.array((1290, 675)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)))
+# camera = Camera(np.array((320, 180)), np.pi/2, np.array((0,0,0)), np.array((0,0)))
 
 
-sphere1 = Sphere(5, np.array((-5,15,0)), (255,0,0), 0)
-sphere2 = Sphere(5, np.array((10,15,5)), (0,0,255), 0)
-sphere3 = Sphere(5, np.array((5,20,0)), (0,255,0), 0)
-sphere4 = Sphere(5, np.array((-15,20,10)), (255,0,255), 0)
+sphere1 = Sphere(5, np.array((-10,30,0)), (255,0,0), 0)
+sphere2 = Sphere(5, np.array((0,30,0)), (0,255,0), 0)
+sphere3 = Sphere(5, np.array((10,30,0)), (0,0,255), 0)
 
-light_source = Light_source(np.array((-10,0,20)), 1, (255,255,255))
+light_source = Light_source(np.array((-10,10,20)), 1000, (255,255,255))
 
-scene = Scene([sphere1, sphere2, sphere3, sphere4], [light_source])
+scene = Scene([sphere1, sphere2, sphere3], [light_source])
 
 
 
