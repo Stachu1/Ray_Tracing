@@ -14,7 +14,7 @@ class Scene:
         self.spheres = spheres
       
         
-
+#TODO: Rectangle intersection
 # class Rectangle:
 #     def __init__(self,):
         
@@ -37,7 +37,7 @@ class Camera:
         self.rotation = rotation
 
 
-    def generate_ray(self, pixel):        
+    def generate_ray(self, pixel):
         fov_y = self.fov * self.resolution[1] / self.resolution[0]
         
         angel_x = pixel[0] * self.fov / (self.resolution[0] - 1) - self.fov / 2
@@ -63,7 +63,8 @@ class Camera:
     
     
     def ray_sphere_intersection(self, ray, sphere):
-        intersection_check = np.dot(ray, np.subtract(self.position, sphere.position))**2 - ((self.position[0] - sphere.position[0])**2 + (self.position[1] - sphere.position[1])**2 + (self.position[2] - sphere.position[2])**2) + sphere.radius**2
+        intersection_check = np.power(np.dot(ray, np.subtract(self.position, sphere.position)), 2) - np.power(self.get_distance(self.position, sphere.position), 2) + sphere.radius**2
+        
         if intersection_check < 0:
             return False
         if intersection_check == 0:
@@ -80,16 +81,28 @@ class Camera:
             return np.add(self.position, ray * d)
     
     
+    def get_distance(self, p1, p2, sqrt=True):
+        d = np.power(np.subtract(p1[0], p2[0]), 2) + np.power(np.subtract(p1[1], p2[1]), 2) + np.power(np.subtract(p1[2], p2[2]), 2)
+        if sqrt:
+            d = np.sqrt(d)
+        return d
+    
+    
     def render_scene(self, scene):
         img = Image.new("RGB", tuple(self.resolution), (0,0,0))
-        draw = ImageDraw.Draw(img)
+        
+        rays_length_array = np.zeros(self.resolution)
         
         for sphere in scene.spheres:
             rays = self.generate_rays()
             for y, row in enumerate(rays):
                 for x, ray in enumerate(row):
-                    if self.ray_sphere_intersection(ray, sphere) is not False:
-                        img.putpixel((x, y), sphere.color)
+                    intersection = self.ray_sphere_intersection(ray, sphere)
+                    if intersection is not False:
+                        ray_length = self.get_distance(self.position, intersection)
+                        if rays_length_array[x][y] == 0 or rays_length_array[x][y] > ray_length:
+                            rays_length_array[x][y] = ray_length
+                            img.putpixel((x, y), sphere.color)
         return img
         
         
@@ -99,12 +112,12 @@ class Camera:
 
 
 
-camera = Camera(np.array((160, 90)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)))
+camera = Camera(np.array((320, 180)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)))
 
-sphere1 = Sphere(5, np.array((-10,10,0)), (255,0,0), 0)
-sphere2 = Sphere(5, np.array((-5,15,0)), (0,0,255), 0)
-sphere3 = Sphere(5, np.array((5,20,0)), (0,255,0), 0)
-sphere4 = Sphere(5, np.array((0,20,10)), (255,0,255), 0)
+sphere1 = Sphere(5, np.array((-5,15,0)), (255,0,0), 0)
+sphere2 = Sphere(5, np.array((5,15,2)), (0,0,255), 0)
+sphere3 = Sphere(5, np.array((10,20,0)), (0,255,0), 0)
+sphere4 = Sphere(5, np.array((-15,20,10)), (255,0,255), 0)
 
 scene = Scene([sphere1, sphere2, sphere3, sphere4])
 
@@ -113,6 +126,4 @@ scene = Scene([sphere1, sphere2, sphere3, sphere4])
 img = camera.render_scene(scene)
 img = img.resize((1200, 675))
 img.show()
-
-
 
