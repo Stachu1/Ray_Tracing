@@ -10,14 +10,23 @@ init()
 
 
 class Scene:
-    def __init__(self, spheres):
+    def __init__(self, spheres, light_sources,):
         self.spheres = spheres
+        self.light_sources = light_sources
       
         
 #TODO: Rectangle intersection
 # class Rectangle:
 #     def __init__(self,):
-        
+
+
+
+class Light_source:
+    def __init__(self, position, brightness, color):
+        self.position = position
+        self.brightness = brightness
+        self.color = color
+    
 
 
 class Sphere:
@@ -62,23 +71,23 @@ class Camera:
         return rays
     
     
-    def ray_sphere_intersection(self, ray, sphere):
-        intersection_check = np.power(np.dot(ray, np.subtract(self.position, sphere.position)), 2) - np.power(self.get_distance(self.position, sphere.position), 2) + sphere.radius**2
+    def check_for_ray_sphere_intersection(self, position, ray, sphere):
+        intersection_check = np.power(np.dot(ray, np.subtract(position, sphere.position)), 2) - np.power(self.get_distance(position, sphere.position), 2) + sphere.radius**2
         
         if intersection_check < 0:
             return False
         if intersection_check == 0:
-            d = -(np.dot(ray, np.subtract(self.position, sphere.position)))
-            return np.add(self.position, ray * d)
+            d = -(np.dot(ray, np.subtract(position, sphere.position)))
+            return np.add(position, ray * d)
         
         if intersection_check > 0:
-            d1 = -(np.dot(ray, np.subtract(self.position, sphere.position))) - np.sqrt(intersection_check)
-            d2 = -(np.dot(ray, np.subtract(self.position, sphere.position))) + np.sqrt(intersection_check)
-            if d1 <= d2:
+            d1 = -(np.dot(ray, np.subtract(position, sphere.position))) - np.sqrt(intersection_check)
+            d2 = -(np.dot(ray, np.subtract(position, sphere.position))) + np.sqrt(intersection_check)
+            if np.abs(d1) <= np.abs(d2):
                 d = d1
             else:
                 d = d2
-            return np.add(self.position, ray * d)
+            return np.add(position, ray * d)
     
     
     def get_distance(self, p1, p2, sqrt=True):
@@ -88,21 +97,46 @@ class Camera:
         return d
     
     
+    def check_for_direct_illumination(self, point, scene):
+        illumination = 0.5
+        for light_source in scene.light_sources:
+            light_ray = np.subtract(light_source.position, point)
+            light_ray = light_ray / light_ray.max()
+            ray_blocked = False
+            for sphere in scene.spheres:
+                intersection = self.check_for_ray_sphere_intersection(point, light_ray, sphere)
+                if intersection is not False and self.get_distance(sphere.position, light_source.position) < self.get_distance(point, light_source.position):
+                    ray_blocked = True
+                    break
+            if not ray_blocked:
+                illumination = illumination + light_source.brightness
+            if illumination > 1:
+                illumination = 1
+        return illumination
+            
+                
+            
+    
+    
     def render_scene(self, scene):
         img = Image.new("RGB", tuple(self.resolution), (0,0,0))
         
         rays_length_array = np.zeros(self.resolution)
         
-        for sphere in scene.spheres:
-            rays = self.generate_rays()
-            for y, row in enumerate(rays):
-                for x, ray in enumerate(row):
-                    intersection = self.ray_sphere_intersection(ray, sphere)
+        rays = self.generate_rays()
+        for y, row in enumerate(rays):
+            for x, ray in enumerate(row):
+                for sphere in scene.spheres:
+                    intersection = self.check_for_ray_sphere_intersection(self.position, ray, sphere)
                     if intersection is not False:
                         ray_length = self.get_distance(self.position, intersection)
                         if rays_length_array[x][y] == 0 or rays_length_array[x][y] > ray_length:
                             rays_length_array[x][y] = ray_length
-                            img.putpixel((x, y), sphere.color)
+                            
+                            
+                            illumination = self.check_for_direct_illumination(intersection, scene)
+                            color = tuple((np.array(sphere.color) * illumination).astype(int))
+                            img.putpixel((x, y), color)
         return img
         
         
@@ -110,16 +144,21 @@ class Camera:
 
 
 
+t_start = time.time()
 
 
+# camera = Camera(np.array((160, 90)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)))
 camera = Camera(np.array((320, 180)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)))
 
+
 sphere1 = Sphere(5, np.array((-5,15,0)), (255,0,0), 0)
-sphere2 = Sphere(5, np.array((5,15,2)), (0,0,255), 0)
-sphere3 = Sphere(5, np.array((10,20,0)), (0,255,0), 0)
+sphere2 = Sphere(5, np.array((10,15,5)), (0,0,255), 0)
+sphere3 = Sphere(5, np.array((5,20,0)), (0,255,0), 0)
 sphere4 = Sphere(5, np.array((-15,20,10)), (255,0,255), 0)
 
-scene = Scene([sphere1, sphere2, sphere3, sphere4])
+light_source = Light_source(np.array((-10,0,20)), 1, (255,255,255))
+
+scene = Scene([sphere1, sphere2, sphere3, sphere4], [light_source])
 
 
 
@@ -127,3 +166,5 @@ img = camera.render_scene(scene)
 img = img.resize((1200, 675))
 img.show()
 
+t_finish = time.time()
+print(f"{Fore.GREEN}Render time: {round(t_finish - t_start, 2)}s{Fore.RESET}")
