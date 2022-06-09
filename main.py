@@ -13,6 +13,7 @@ class Scene:
     def __init__(self, spheres, planes, light_sources):
         self.spheres = spheres
         self.planes = planes
+        self.all_bodies = self.spheres + planes
         self.light_sources = light_sources
         
       
@@ -28,6 +29,7 @@ class Plane:
         self.position = np.array(position)
         self.normal = np.array(normal)
         self.color = np.array(color)
+
 
 
 class Light_source:
@@ -97,7 +99,10 @@ class Camera:
                 d = d1
             else:
                 d = d2
-            return np.add(position, ray * d)
+            if d > 0:
+                return np.add(position, ray * d)
+            else:
+                return False
     
     
     def check_for_ray_plane_intersection(self, position, ray, plane):
@@ -107,7 +112,15 @@ class Camera:
         if d >= 0:
             return np.add(position, ray * d)
         else:
-            return False   
+            return False
+    
+    
+    def check_for_ray_body_intersection(self, position, ray, body):
+        body_type = type(body)
+        if body_type is Sphere:
+            return self.check_for_ray_sphere_intersection(position, ray, body)
+        if body_type is Plane:
+            return self.check_for_ray_plane_intersection(position, ray, body)
     
     
     def get_distance(self, p1, p2, sqrt=True):
@@ -126,34 +139,38 @@ class Camera:
         return normalized_vector
     
     
-    def check_for_direct_illumination(self, position, intersecting_object, scene):
-        illumination = 0
+    def check_for_direct_illumination(self, position, body, scene):
+        illumination = np.array((0,0,0))
         for light_source in scene.light_sources:
             light_ray = np.subtract(light_source.position, position)
             light_ray = self.normalize_vector(light_ray)
             
             ray_blocked = False
             for sphere in scene.spheres:
-                intersection = self.check_for_ray_sphere_intersection(position, light_ray, sphere)
+                intersection = self.check_for_ray_body_intersection(position, light_ray, sphere)
                 if intersection is not False and self.get_distance(sphere.position, light_source.position) < self.get_distance(position, light_source.position):
                     ray_blocked = True
                     break
             if not ray_blocked:
-                if type(intersecting_object) is Sphere:
-                    normal = np.subtract(position, intersecting_object.position)
+                if type(body) is Sphere:
+                    normal = np.subtract(position, body.position)
                 else:
-                    normal = intersecting_object.normal
+                    normal = body.normal
             
                 normal = self.normalize_vector(normal)
                 brightness_multiplier = np.dot(light_ray, normal) / (self.get_vector_length(light_ray) * self.get_vector_length(normal))
-                illumination = illumination + (np.power(light_source.brightness / self.get_distance(position, light_source.position), 2)) * brightness_multiplier
-        if illumination > 1:
-            illumination = 1
+                if brightness_multiplier > 0:
+                    illumination = illumination + light_source.color * ((np.power(light_source.brightness / self.get_distance(position, light_source.position), 2)) * brightness_multiplier)
+        if illumination.max() > 255:
+            illumination = illumination / illumination.max() * 255
         return illumination
 
     
     def gamma_correction(self, color, gamma):
-        color = np.power(color, 1/gamma)
+        if color.max() > 1:
+            color = np.power(color/255, 1/gamma) * 255
+        else:
+            color = np.power(color, 1/gamma)
         return color
         
             
@@ -165,31 +182,17 @@ class Camera:
         rays = self.generate_rays()
         for y, row in enumerate(rays):
             for x, ray in enumerate(row):
-                for sphere in scene.spheres:
-                    intersection = self.check_for_ray_sphere_intersection(self.position, ray, sphere)
+                for body in scene.all_bodies:
+                    intersection = self.check_for_ray_body_intersection(self.position, ray, body)
                     if intersection is not False:
                         ray_length = self.get_distance(self.position, intersection)
                         if rays_length_array[x][y] == 0 or rays_length_array[x][y] > ray_length:
                             rays_length_array[x][y] = ray_length
                             
-                            illumination = self.check_for_direct_illumination(intersection, sphere, scene)
-                            if illumination != 0:
+                            illumination = self.check_for_direct_illumination(intersection, body, scene)
+                            if illumination.sum() != 0:
                                 illumination = self.gamma_correction(illumination, self.gamma)
-                                color = sphere.color * illumination
-                                color = tuple(color.astype(int))
-                                img.putpixel((x, y), color)
-                            
-                for plane in scene.planes:
-                    intersection = self.check_for_ray_plane_intersection(self.position, ray, plane)
-                    if intersection is not False:
-                        ray_length = self.get_distance(self.position, intersection)
-                        if rays_length_array[x][y] == 0 or rays_length_array[x][y] > ray_length:
-                            rays_length_array[x][y] = ray_length
-                            
-                            illumination = self.check_for_direct_illumination(intersection, plane, scene)
-                            if illumination != 0:
-                                illumination = self.gamma_correction(illumination, self.gamma)
-                                color = plane.color * illumination
+                                color = body.color * illumination / 255
                                 color = tuple(color.astype(int))
                                 img.putpixel((x, y), color)
         return img
@@ -202,17 +205,17 @@ class Camera:
 t_start = time.time()
 
 
-camera = Camera(np.array((800, 450)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)), 2.4)
-# camera = Camera((160, 90), np.pi/2, (0,0,6), (0,-0.2), 1)
+# camera = Camera(np.array((800, 450)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)), 2.4)
+camera = Camera((320, 180), np.pi/2, (0,0,5), (0,0), 2.4)
 
 
-sphere1 = Sphere(5, (-10,30,0), (255,0,0), 0)
-sphere2 = Sphere(5, (0,30,0), (0,255,0), 0)
-sphere3 = Sphere(5, (10,30,0), (0,0,255), 0)
+sphere1 = Sphere(5, (-10,30,5), (255,0,0), 0)
+sphere2 = Sphere(5, (0,30,5), (0,255,0), 0)
+sphere3 = Sphere(5, (10,30,5), (0,0,255), 0)
 
-light_source1 = Light_source((30,0,100), 100, (255,255,255))
+light_source1 = Light_source((20,0,100), 100, (255,255,255))
 
-plane = Plane((0,0,-5), (0,0,1), (255,255,255))
+plane = Plane((0,0,0), (0,0,1), (255,255,255))
 
 scene = Scene([sphere1, sphere2, sphere3], [plane], [light_source1])
 
