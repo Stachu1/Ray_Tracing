@@ -108,9 +108,11 @@ class Camera:
     
     
     def check_for_ray_plane_intersection(self, position, ray, plane):
-        if ray[2] == 0:
-            return False
-        d = (plane.position[2] - position[2]) / ray[2]
+        intersection_check = - np.dot(ray, plane.normal)
+        
+        if intersection_check != 0:
+            n = np.subtract(position[0], plane.position[0]) * plane.normal[0] + np.subtract(position[1], plane.position[1]) * plane.normal[1] + np.subtract(position[2], plane.position[2]) * plane.normal[2]
+            d = n / intersection_check
         if d >= 0:
             return np.add(position, ray * d)
         else:
@@ -169,7 +171,7 @@ class Camera:
 
     
     def gamma_correction(self, color, gamma):
-        if color.max() > 1:
+        if type(color) == np.ndarray:
             color = np.power(color/255, 1/gamma) * 255
         else:
             color = np.power(color, 1/gamma)
@@ -225,17 +227,17 @@ def printProgressBar (progress, total, time_start):
 
 
 
-camera = Camera((800, 450), np.pi/2, (0,0,5), (0,0), 2.4)
-# camera = Camera((320, 180), np.pi/2, (0,0,5), (0,0), 2.4)
+# camera = Camera((1200, 675), np.pi/2, (0,0,5), (0,0), 2.4)
+camera = Camera((320, 180), np.pi/2, (0,0,5), (0,0), 2.4)
 
 
 sphere1 = Sphere(5, (-10,30,5), (255,0,0), 0)
 sphere2 = Sphere(5, (0,30,5), (0,255,0), 0)
 sphere3 = Sphere(5, (10,30,5), (0,0,255), 0)
 
-light_source1 = Light_source((30,0,100), 80, (255,0,0))
-light_source2 = Light_source((0,0,100), 80, (0,255,0))
-light_source3 = Light_source((-30,0,100), 80, (0,0,255))
+light_source1 = Light_source((30,0,100), 80, (255,255,255))
+light_source2 = Light_source((0,0,100), 80, (255,255,255))
+light_source3 = Light_source((-30,0,100), 80, (255,255,255))
 
 
 plane = Plane((0,0,0), (0,0,1), (255,255,255))
