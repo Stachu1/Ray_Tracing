@@ -73,8 +73,10 @@ class Camera:
     
     
     def generate_rays(self):
+        time_start = time.time()
         rays = []
         for y_index in range(self.resolution[1]):
+            printProgressBar(y_index+1, self.resolution[1], time_start)
             row = []
             for x_index in range(self.resolution[0]):
                 row.append(self.generate_ray((x_index, y_index)))
@@ -176,11 +178,14 @@ class Camera:
             
     def render_scene(self, scene):
         img = Image.new("RGB", tuple(self.resolution), (0,0,0))
-        
         rays_length_array = np.zeros(self.resolution)
-        
+        print(f"{Fore.CYAN}Preparing rays:{Fore.RESET}")
         rays = self.generate_rays()
+        
+        time_start = time.time()
+        print(f"{Fore.CYAN}\nRendering:{Fore.RESET}")
         for y, row in enumerate(rays):
+            printProgressBar(y+1, self.resolution[1], time_start)
             for x, ray in enumerate(row):
                 for body in scene.all_bodies:
                     intersection = self.check_for_ray_body_intersection(self.position, ray, body)
@@ -197,33 +202,49 @@ class Camera:
                                 img.putpixel((x, y), color)
         return img
         
+
+
+def printProgressBar (progress, total, time_start):
+    percent = 100 * (progress / total)
+    bar = "█" * int(percent) + "-" * (100 - int(percent))
+    time_total = time.time() - time_start
+    if time_total >= 60:
+        time_total = f"{int(time_total // 60)}m {(time_total % 60):.2f}s"
+    else:
+        time_total = f"{time_total:.2f}s"
         
+    time_left = (time.time() - time_start) / (percent / 100) - (time.time() - time_start)
+    if time_left >= 60:
+        time_left = f"{int(time_left // 60)}m {(time_left % 60):.2f}s"
+    else:
+        time_left = f"{time_left:.2f}s"
+    print(f"{bar} {percent:.2f}%   t: {time_total}   eta: " + time_left, end="     \r")
+    if progress == total: 
+        print(f"{Fore.GREEN}{bar} {percent:.2f}%   t: {time_total}   eta: --      {Fore.RESET}")    
         
 
 
 
-t_start = time.time()
-
-
-# camera = Camera(np.array((800, 450)), np.pi/2, np.array((0,0,0)), np.array((0,0,0)), 2.4)
-camera = Camera((320, 180), np.pi/2, (0,0,5), (0,0), 2.4)
+camera = Camera((800, 450), np.pi/2, (0,0,5), (0,0), 2.4)
+# camera = Camera((320, 180), np.pi/2, (0,0,5), (0,0), 2.4)
 
 
 sphere1 = Sphere(5, (-10,30,5), (255,0,0), 0)
 sphere2 = Sphere(5, (0,30,5), (0,255,0), 0)
 sphere3 = Sphere(5, (10,30,5), (0,0,255), 0)
 
-light_source1 = Light_source((20,0,100), 100, (255,255,255))
+light_source1 = Light_source((30,0,100), 80, (255,0,0))
+light_source2 = Light_source((0,0,100), 80, (0,255,0))
+light_source3 = Light_source((-30,0,100), 80, (0,0,255))
+
 
 plane = Plane((0,0,0), (0,0,1), (255,255,255))
 
-scene = Scene([sphere1, sphere2, sphere3], [plane], [light_source1])
+scene = Scene([sphere1, sphere2, sphere3], [plane], [light_source1, light_source2, light_source3])
 
 
 
 img = camera.render_scene(scene)
+img.save("render.png", format="png")
 img = img.resize((1200, 675))
 img.show()
-
-t_finish = time.time()
-print(f"{Fore.GREEN}Render time: {round(t_finish - t_start, 2)}s{Fore.RESET}")
