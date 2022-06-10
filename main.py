@@ -27,8 +27,12 @@ class Scene:
 class Plane:
     def __init__(self, position, normal, color):
         self.position = np.array(position)
-        self.normal = np.array(normal)
+        self.normal = self.normalize_vector(np.array(normal))
         self.color = np.array(color)
+    
+    def normalize_vector(self, vector):
+     return vector/np.linalg.norm(vector)
+    
 
 
 
@@ -113,10 +117,9 @@ class Camera:
         if intersection_check != 0:
             n = np.subtract(position[0], plane.position[0]) * plane.normal[0] + np.subtract(position[1], plane.position[1]) * plane.normal[1] + np.subtract(position[2], plane.position[2]) * plane.normal[2]
             d = n / intersection_check
-        if d >= 0:
-            return np.add(position, ray * d)
-        else:
-            return False
+            if d >= 0:
+                return np.add(position, ray * d)
+        return False
     
     
     def check_for_ray_body_intersection(self, position, ray, body):
@@ -139,8 +142,7 @@ class Camera:
     
     
     def normalize_vector(self, vector):
-        normalized_vector = vector / max(abs(vector.min()), abs(vector.max()))
-        return normalized_vector
+     return vector/np.linalg.norm(vector)
     
     
     def check_for_direct_illumination(self, position, body, scene):
@@ -155,6 +157,7 @@ class Camera:
                 if intersection is not False and self.get_distance(sphere.position, light_source.position) < self.get_distance(position, light_source.position):
                     ray_blocked = True
                     break
+                
             if not ray_blocked:
                 if type(body) is Sphere:
                     normal = np.subtract(position, body.position)
@@ -162,9 +165,11 @@ class Camera:
                     normal = body.normal
             
                 normal = self.normalize_vector(normal)
+                
                 brightness_multiplier = np.dot(light_ray, normal) / (self.get_vector_length(light_ray) * self.get_vector_length(normal))
                 if brightness_multiplier > 0:
-                    illumination = illumination + light_source.color * ((np.power(light_source.brightness / self.get_distance(position, light_source.position), 2)) * brightness_multiplier)
+                    brightness_multiplier = brightness_multiplier * (np.power(light_source.brightness / self.get_distance(position, light_source.position), 2))
+                    illumination = illumination + light_source.color * brightness_multiplier
         if illumination.max() > 255:
             illumination = illumination / illumination.max() * 255
         return illumination
@@ -227,22 +232,25 @@ def printProgressBar (progress, total, time_start):
 
 
 
-# camera = Camera((1200, 675), np.pi/2, (0,0,5), (0,0), 2.4)
-camera = Camera((320, 180), np.pi/2, (0,0,5), (0,0), 2.4)
+camera = Camera((1200, 675), np.pi/2, (0,0,5), (0,0), 2.4)
+# camera = Camera((320, 180), np.pi/2, (0,0,10), (0,0), 2.4)
 
 
-sphere1 = Sphere(5, (-10,30,5), (255,0,0), 0)
-sphere2 = Sphere(5, (0,30,5), (0,255,0), 0)
-sphere3 = Sphere(5, (10,30,5), (0,0,255), 0)
+sphere1 = Sphere(5, (-10,50,5), (255,0,0), 0)
+sphere2 = Sphere(5, (0,50,5), (0,255,0), 0)
+sphere3 = Sphere(5, (10,50,5), (0,0,255), 0)
 
-light_source1 = Light_source((30,0,100), 80, (255,255,255))
-light_source2 = Light_source((0,0,100), 80, (255,255,255))
-light_source3 = Light_source((-30,0,100), 80, (255,255,255))
+light_source1 = Light_source((20,0,50), 50, (255,255,255))
+# light_source2 = Light_source((0,0,100), 80, (255,255,255))
+# light_source3 = Light_source((-30,0,100), 80, (255,255,255))
 
 
-plane = Plane((0,0,0), (0,0,1), (255,255,255))
+plane1 = Plane((0,0,0), (0,0,1), (155,155,155))
+plane2 = Plane((-30,0,0), (1,0,0), (255,0,0))
+plane3 = Plane((0,60,0), (0,-1,0), (255,255,255))
+plane4 = Plane((30,0,0), (-1,0,0), (0,0,255))
 
-scene = Scene([sphere1, sphere2, sphere3], [plane], [light_source1, light_source2, light_source3])
+scene = Scene([sphere1, sphere2, sphere3], [plane1, plane2, plane3, plane4], [light_source1])
 
 
 
