@@ -163,7 +163,6 @@ class Camera:
                     normal = np.subtract(position, body.position)
                 else:
                     normal = body.normal
-            
                 normal = self.normalize_vector(normal)
                 
                 brightness_multiplier = np.dot(light_ray, normal) / (self.get_vector_length(light_ray) * self.get_vector_length(normal))
@@ -202,11 +201,10 @@ class Camera:
                             rays_length_array[x][y] = ray_length
                             
                             illumination = self.check_for_direct_illumination(intersection, body, scene)
-                            if illumination.sum() != 0:
-                                illumination = self.gamma_correction(illumination, self.gamma)
-                                color = body.color * illumination / 255
-                                color = tuple(color.astype(int))
-                                img.putpixel((x, y), color)
+                            illumination = self.gamma_correction(illumination, self.gamma)
+                            color = body.color * illumination / 255
+                            color = tuple(color.astype(int))
+                            img.putpixel((x, y), color)
         return img
         
 
@@ -232,15 +230,15 @@ def printProgressBar (progress, total, time_start):
 
 
 
-camera = Camera((1200, 675), np.pi/2, (0,0,5), (0,0), 2.4)
-# camera = Camera((320, 180), np.pi/2, (0,0,10), (0,0), 2.4)
+# camera = Camera((1200, 675), np.pi/2, (0,0,5), (0,0), 2.4)
+camera = Camera((320, 180), np.pi/4, (0,-50,10), (0,0), 2.4)
 
-
+sphere = Sphere(10, (0,50,10), (0,255,0), 0)
 sphere1 = Sphere(5, (-10,50,5), (255,0,0), 0)
 sphere2 = Sphere(5, (0,50,5), (0,255,0), 0)
 sphere3 = Sphere(5, (10,50,5), (0,0,255), 0)
 
-light_source1 = Light_source((20,0,50), 50, (255,255,255))
+light_source1 = Light_source((20,30,20), 50, (255,255,255))
 # light_source2 = Light_source((0,0,100), 80, (255,255,255))
 # light_source3 = Light_source((-30,0,100), 80, (255,255,255))
 
@@ -250,7 +248,7 @@ plane2 = Plane((-30,0,0), (1,0,0), (255,0,0))
 plane3 = Plane((0,60,0), (0,-1,0), (255,255,255))
 plane4 = Plane((30,0,0), (-1,0,0), (0,0,255))
 
-scene = Scene([sphere1, sphere2, sphere3], [plane1, plane2, plane3, plane4], [light_source1])
+scene = Scene([sphere], [plane1, plane2, plane3, plane4], [light_source1])
 
 
 
