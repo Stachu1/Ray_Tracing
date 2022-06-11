@@ -62,30 +62,42 @@ class Camera:
         self.gamma = gamma
 
 
-    def generate_ray(self, pixel):
-        fov_y = self.fov * self.resolution[1] / self.resolution[0]
+    def generate_ray(self, pixel, screen_distance):
+        x = pixel[0] - self.resolution[0] / 2
+        y = screen_distance
+        z = -pixel[1] + self.resolution[1] / 2
         
-        angel_x = pixel[0] * self.fov / (self.resolution[0] - 1) - self.fov / 2 + self.rotation[0]
-        angel_y = - pixel[1] * fov_y / (self.resolution[1] - 1) + fov_y / 2 + self.rotation[1]
+        # ray = np.array((x, y, z))
+        # ray = self.normalize_vector(ray)
         
-        x = np.sin(angel_x)*np.cos(angel_y)
-        y = np.cos(angel_x)*np.cos(angel_y)
-        z = np.sin(angel_y)
+        # x = ray[0]
+        # y = ray[1]
+        # z = ray[2]
+        
+        # angle_x = np.arccos(z)
+        # angle_z = np.arctan2(y, x)
+        
+        # x = np.sin(angle_x)*np.cos(angle_z)
+        # y = np.cos(angle_x)*np.cos(angle_z)
+        # z = np.sin(angle_z)
         
         ray = np.array((x, y, z))
+        ray = self.normalize_vector(ray)
         return ray
     
     
     def generate_rays(self):
         time_start = time.time()
+        screen_distance = np.cos(self.fov/2) * self.resolution[0] / 2
         rays = []
         for y_index in range(self.resolution[1]):
             printProgressBar(y_index+1, self.resolution[1], time_start)
             row = []
             for x_index in range(self.resolution[0]):
-                row.append(self.generate_ray((x_index, y_index)))
+                row.append(self.generate_ray((x_index, y_index), screen_distance))
             rays.append(row)
         rays = np.array(rays)
+        
         return rays
     
     
@@ -230,25 +242,24 @@ def printProgressBar (progress, total, time_start):
 
 
 
-# camera = Camera((1200, 675), np.pi/2, (0,0,5), (0,0), 2.4)
-camera = Camera((320, 180), np.pi/4, (0,-50,10), (0,0), 2.4)
+camera = Camera((1600, 900), np.pi/2, (0,0,5), 0, 2.4)
+# camera = Camera((320, 180), np.pi/2, (0,0,30), 0, 2.4)
 
-sphere = Sphere(10, (0,50,10), (0,255,0), 0)
-sphere1 = Sphere(5, (-10,50,5), (255,0,0), 0)
-sphere2 = Sphere(5, (0,50,5), (0,255,0), 0)
+sphere1 = Sphere(15, (-15,45,15), (255,255,0), 0)
+sphere2 = Sphere(15, (15,35,15), (0,255,255), 0)
 sphere3 = Sphere(5, (10,50,5), (0,0,255), 0)
 
-light_source1 = Light_source((20,30,20), 50, (255,255,255))
+light_source1 = Light_source((0,30,50), 25, (255,255,255))
 # light_source2 = Light_source((0,0,100), 80, (255,255,255))
 # light_source3 = Light_source((-30,0,100), 80, (255,255,255))
-
 
 plane1 = Plane((0,0,0), (0,0,1), (155,155,155))
 plane2 = Plane((-30,0,0), (1,0,0), (255,0,0))
 plane3 = Plane((0,60,0), (0,-1,0), (255,255,255))
 plane4 = Plane((30,0,0), (-1,0,0), (0,0,255))
+plane5 = Plane((0,0,60), (0,0,-1), (255,255,255))
 
-scene = Scene([sphere], [plane1, plane2, plane3, plane4], [light_source1])
+scene = Scene([sphere1, sphere2], [plane1, plane2, plane3, plane4, plane5], [light_source1])
 
 
 
