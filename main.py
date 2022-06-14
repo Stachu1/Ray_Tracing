@@ -24,11 +24,19 @@ class Scene:
 
 
 
+class Texture:
+    def __init__(self, filename):
+        self.img = Image.open(f"textures/{filename}").convert("RGB")
+        self.width, self.height = self.img.size
+
+
+
 class Plane:
-    def __init__(self, position, normal, color):
+    def __init__(self, position, normal, color, texture=None):
         self.position = np.array(position)
         self.normal = self.normalize_vector(np.array(normal))
         self.color = np.array(color)
+        self.texture = texture
     
     def normalize_vector(self, vector):
      return vector/np.linalg.norm(vector)
@@ -45,11 +53,12 @@ class Light_source:
 
 
 class Sphere:
-    def __init__(self, radius, position, color, reflectivity):
+    def __init__(self, radius, position, color, reflectivity, texture=None):
         self.radius = radius
         self.position = np.array(position)
         self.color = np.array(color)
         self.reflectivity = reflectivity
+        self.texture = texture
 
 
 
@@ -73,6 +82,7 @@ class Camera:
                             (np.sin(rotation[2]), np.cos(rotation[2]), 0),
                             (0, 0, 1)))
 
+
     def generate_ray(self, pixel, screen_distance):
         x = pixel[0] - self.resolution[0] / 2
         y = screen_distance
@@ -80,12 +90,9 @@ class Camera:
         
         ray = np.array((x, y, z))
 
-        zAngle = 1
-
         ray = np.matmul(self.zMatrix, ray)      
         ray = np.matmul(self.yMatrix, ray)
         ray = np.matmul(self.xMatrix, ray)
-
 
         ray = self.normalize_vector(ray)
         return ray
@@ -197,6 +204,60 @@ class Camera:
         else:
             color = np.power(color, 1/gamma)
         return color
+    
+    
+    def get_color_from_texture(self, body, intersection):
+        if type(body) is Plane:
+            plane = body
+            
+            if plane.normal[0] == 0 and plane.normal[2] == 0:
+                x = intersection[0] - plane.position[0]
+                y = intersection[2] - plane.position[2]
+                
+            elif plane.normal[1] == 0 and plane.normal[2] == 0:
+                x = intersection[1] - plane.position[1]
+                y = intersection[2] - plane.position[2]
+                
+            elif plane.normal[0] == 0 and plane.normal[1] == 0:
+                x = intersection[0] - plane.position[0]
+                y = intersection[1] - plane.position[1]
+            
+            else:
+                return body.color
+            
+            if plane.normal[0] < 0:
+                pixel_x = int(plane.texture.width - 1 - x % plane.texture.width)
+                pixel_y = int(plane.texture.height - 1 - y % plane.texture.height)
+                color = plane.texture.img.getpixel((pixel_x, pixel_y))
+                return color
+            if plane.normal[0] > 0:
+                pixel_x = int(x % plane.texture.width)
+                pixel_y = int(plane.texture.height - 1 - y % plane.texture.height)
+                color = plane.texture.img.getpixel((pixel_x, pixel_y))
+                return color
+            
+            if plane.normal[1] < 0:
+                pixel_x = int(x % plane.texture.width)
+                pixel_y = int(plane.texture.height - 1 - y % plane.texture.height)
+                color = plane.texture.img.getpixel((pixel_x, pixel_y))
+                return color
+            if plane.normal[1] > 0:
+                pixel_x = int(plane.texture.width - 1 - x % plane.texture.width)
+                pixel_y = int(plane.texture.height - 1 - y % plane.texture.height)
+                color = plane.texture.img.getpixel((pixel_x, pixel_y))
+                return color
+            
+            if plane.normal[2] < 0:
+                pixel_x = int(plane.texture.width - 1 - x % plane.texture.width)
+                pixel_y = int(plane.texture.height - 1 - y % plane.texture.height)
+                color = plane.texture.img.getpixel((pixel_x, pixel_y))
+                return color
+            if plane.normal[2] > 0:
+                pixel_x = int(plane.texture.width - 1 - x % plane.texture.width)
+                pixel_y = int(y % plane.texture.height)
+                color = plane.texture.img.getpixel((pixel_x, pixel_y))
+                return color
+                
         
             
     def render_scene(self, scene):
@@ -219,7 +280,10 @@ class Camera:
                             
                             illumination = self.check_for_direct_illumination(intersection, body, scene)
                             illumination = self.gamma_correction(illumination, self.gamma)
-                            color = body.color * illumination / 255
+                            if body.texture is not None:
+                                color = self.get_color_from_texture(body, intersection) * illumination / 255
+                            else:
+                                color = body.color * illumination / 255
                             color = tuple(color.astype(int))
                             img.putpixel((x, y), color)
         return img
@@ -246,23 +310,31 @@ def printProgressBar (progress, total, time_start):
         
 
 
+#* (resolution, FOV, pos, rotation, gamma)
+camera = Camera((1600, 900), np.pi/2, (0,0,30), (0, 0, 0), 2.4)
+# camera = Camera((320, 180), np.pi/2, (0,0,30), (0, 0, 0), 2.4)
 
-camera = Camera((1600, 900), np.pi/2, (0,0,5), (0.1, 0.1, 0.1), 2.4)
-# camera = Camera((320, 180), np.pi/2, (0,0,30), (0.1, 0.1, 0.1), 2.4)
 
-sphere1 = Sphere(15, (-15,45,15), (255,255,0), 0)
-sphere2 = Sphere(15, (15,35,15), (0,255,255), 0)
-sphere3 = Sphere(5, (10,50,5), (0,0,255), 0)
+#* (radius, pos, color, reflectivity)
+sphere1 = Sphere(10, (-15,45,10), (0,255,0), 0)
+sphere2 = Sphere(10, (15,35,10), (255,0,255), 0)
 
+#* (pos, brightness, color)
 light_source1 = Light_source((0,30,50), 25, (255,255,255))
 # light_source2 = Light_source((0,0,100), 80, (255,255,255))
 # light_source3 = Light_source((-30,0,100), 80, (255,255,255))
 
-plane1 = Plane((0,0,0), (0,0,1), (155,155,155))
-plane2 = Plane((-30,0,0), (1,0,0), (255,0,0))
-plane3 = Plane((0,60,0), (0,-1,0), (255,255,255))
-plane4 = Plane((30,0,0), (-1,0,0), (0,0,255))
-plane5 = Plane((0,0,60), (0,0,-1), (255,255,255))
+texture_stone = Texture("stone.png")
+texture_diamond = Texture("diamond_ore.png")
+texture_redstone = Texture("redstone_ore.png")
+texture_lapis = Texture("lapis_ore.png")
+
+#* (pos, norm, color, "texture")
+plane1 = Plane((0,0,0), (0,0,1), (155,155,155), texture_stone)
+plane2 = Plane((-32,0,0), (1,0,0), (255,0,0), texture_redstone)
+plane3 = Plane((0,64,0), (0,-1,0), (255,255,255), texture_diamond)
+plane4 = Plane((32,0,0), (-1,0,0), (0,0,255), texture_lapis)
+plane5 = Plane((0,0,64), (0,0,-1), (255,255,255), texture_stone)
 
 scene = Scene([sphere1, sphere2], [plane1, plane2, plane3, plane4, plane5], [light_source1])
 
@@ -270,5 +342,5 @@ scene = Scene([sphere1, sphere2], [plane1, plane2, plane3, plane4, plane5], [lig
 
 img = camera.render_scene(scene)
 img.save("render.png", format="png")
-# img = img.resize((1200, 675))
-# img.show()
+img = img.resize((1200, 675))
+img.show()
