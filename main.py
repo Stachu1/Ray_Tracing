@@ -8,6 +8,7 @@ init()
 
 
 
+
 class Scene:
     def __init__(self, spheres, planes, light_sources):
         self.spheres = spheres
@@ -32,6 +33,7 @@ class Plane:
     def normalize_vector(self, vector):
      return vector/np.linalg.norm(vector)
     
+
 
 
 class Light_source:
@@ -59,31 +61,32 @@ class Camera:
         self.rotation = np.array(rotation)
         self.gamma = gamma
 
+        self.xMatrix = np.array(((1, 0, 0),
+                            (0, np.cos(rotation[0]), -np.sin(rotation[0])),
+                            (0, np.sin(rotation[0]), np.cos(rotation[0]))))
+
+        self.yMatrix = np.array(((np.cos(rotation[1]), 0, np.sin(rotation[1])),
+                            (0, 1, 0),
+                            (-np.sin(rotation[1]), 0, np.cos(rotation[1]))))
+
+        self.zMatrix = np.array(((np.cos(rotation[2]), -np.sin(rotation[2]), 0),
+                            (np.sin(rotation[2]), np.cos(rotation[2]), 0),
+                            (0, 0, 1)))
 
     def generate_ray(self, pixel, screen_distance):
         x = pixel[0] - self.resolution[0] / 2
         y = screen_distance
         z = -pixel[1] + self.resolution[1] / 2
         
-        a = self.rotation[2]
-        
-        rx = x * np.cos(a) - y * np.sin(a)
-        ry = x * np.sin(a) + y * np.cos(a)
-        
-        a = self.rotation[1]
-        
-        x = rx
-        rx = x * np.cos(a) - z * np.sin(a)
-        rz = x * np.sin(a) + z * np.cos(a)
-        
-        a = self.rotation[0]
-        
-        y = ry
-        z = rz
-        ry = y * np.cos(a) - z * np.sin(a)
-        rz = y * np.sin(a) + z * np.cos(a)
-        
-        ray = np.array((rx, ry, rz))
+        ray = np.array((x, y, z))
+
+        zAngle = 1
+
+        ray = np.matmul(self.zMatrix, ray)      
+        ray = np.matmul(self.yMatrix, ray)
+        ray = np.matmul(self.xMatrix, ray)
+
+
         ray = self.normalize_vector(ray)
         return ray
     
@@ -244,8 +247,8 @@ def printProgressBar (progress, total, time_start):
 
 
 
-# camera = Camera((1600, 900), np.pi/2, (0,0,30), (0,0,0), 2.4)
-camera = Camera((320, 180), np.pi/2, (0,0,30), (0,0,0), 2.4)
+camera = Camera((1600, 900), np.pi/2, (0,0,5), (0.1, 0.1, 0.1), 2.4)
+# camera = Camera((320, 180), np.pi/2, (0,0,30), (0.1, 0.1, 0.1), 2.4)
 
 sphere1 = Sphere(15, (-15,45,15), (255,255,0), 0)
 sphere2 = Sphere(15, (15,35,15), (0,255,255), 0)
@@ -267,5 +270,5 @@ scene = Scene([sphere1, sphere2], [plane1, plane2, plane3, plane4, plane5], [lig
 
 img = camera.render_scene(scene)
 img.save("render.png", format="png")
-img = img.resize((1200, 675))
-img.show()
+# img = img.resize((1200, 675))
+# img.show()
