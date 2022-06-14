@@ -8,7 +8,6 @@ init()
 
 
 
-
 class Scene:
     def __init__(self, spheres, planes, light_sources):
         self.spheres = spheres
@@ -33,7 +32,6 @@ class Plane:
     def normalize_vector(self, vector):
      return vector/np.linalg.norm(vector)
     
-
 
 
 class Light_source:
@@ -67,21 +65,25 @@ class Camera:
         y = screen_distance
         z = -pixel[1] + self.resolution[1] / 2
         
-        # ray = np.array((x, y, z))
-        # ray = self.normalize_vector(ray)
+        a = self.rotation[2]
         
-        # x = ray[0]
-        # y = ray[1]
-        # z = ray[2]
+        rx = x * np.cos(a) - y * np.sin(a)
+        ry = x * np.sin(a) + y * np.cos(a)
         
-        # angle_x = np.arccos(z)
-        # angle_z = np.arctan2(y, x)
+        a = self.rotation[1]
         
-        # x = np.sin(angle_x)*np.cos(angle_z)
-        # y = np.cos(angle_x)*np.cos(angle_z)
-        # z = np.sin(angle_z)
+        x = rx
+        rx = x * np.cos(a) - z * np.sin(a)
+        rz = x * np.sin(a) + z * np.cos(a)
         
-        ray = np.array((x, y, z))
+        a = self.rotation[0]
+        
+        y = ry
+        z = rz
+        ry = y * np.cos(a) - z * np.sin(a)
+        rz = y * np.sin(a) + z * np.cos(a)
+        
+        ray = np.array((rx, ry, rz))
         ray = self.normalize_vector(ray)
         return ray
     
@@ -242,8 +244,8 @@ def printProgressBar (progress, total, time_start):
 
 
 
-camera = Camera((1600, 900), np.pi/2, (0,0,5), 0, 2.4)
-# camera = Camera((320, 180), np.pi/2, (0,0,30), 0, 2.4)
+# camera = Camera((1600, 900), np.pi/2, (0,0,30), (0,0,0), 2.4)
+camera = Camera((320, 180), np.pi/2, (0,0,30), (0,0,0), 2.4)
 
 sphere1 = Sphere(15, (-15,45,15), (255,255,0), 0)
 sphere2 = Sphere(15, (15,35,15), (0,255,255), 0)
