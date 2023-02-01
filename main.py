@@ -13,9 +13,8 @@ class Scene:
     def __init__(self, spheres, planes, light_sources):
         self.spheres = spheres
         self.planes = planes
-        self.all_bodies = self.spheres + planes
-        self.light_sources = light_sources
-        
+        self.all_bodies = self.spheres + self.planes
+        self.light_sources = light_sources        
       
         
 #TODO: Rectangle intersection
@@ -33,10 +32,11 @@ class Texture:
 
 
 class Plane:
-    def __init__(self, position, normal, color, texture=None):
+    def __init__(self, position, normal, color, reflectivity, texture=None):
         self.position = np.array(position)
         self.normal = self.normalize_vector(np.array(normal))
         self.color = np.array(color)
+        self.reflectivity = reflectivity
         self.texture = texture
     
     def normalize_vector(self, vector):
@@ -66,12 +66,13 @@ class Sphere:
 
 
 class Camera:
-    def __init__(self, resolution, fov, position, rotation, gamma):
+    def __init__(self, resolution, fov, position, rotation, gamma, max_reflections=1):
         self.resolution = np.array(resolution)
         self.fov = fov
         self.position = np.array(position)
         self.rotation = np.array(rotation)
         self.gamma = gamma
+        self.max_reflections = max_reflections
 
         self.xMatrix = np.array(((1, 0, 0),
                             (0, np.cos(rotation[0]), -np.sin(rotation[0])),
@@ -170,7 +171,21 @@ class Camera:
     
     def normalize_vector(self, vector):
      return vector/np.linalg.norm(vector)
-    
+ 
+ 
+    def get_img_average_color(self, img):
+        # color_list = []
+        # for pixel in img.getcolors():
+        #     color_list.append(pixel[1])
+        # color_list = np.array(color_list)
+        # color_sum = np.array([0,0,0])
+        # for pixel in color_list:
+        #     color_sum += pixel
+        # color = color_sum / len(color_list)
+        img = img.resize((1,1))
+        color = img.getpixel((0,0))
+        return color
+        
     
     def check_for_direct_illumination(self, position, body, scene):
         illumination = np.array((0,0,0))
@@ -234,35 +249,44 @@ class Camera:
                 pixel_x = plane.texture.width - 1 - x % plane.texture.width
                 pixel_y = plane.texture.height - 1 - y % plane.texture.height
                 color = plane.texture.img.getpixel((int(pixel_x), int(pixel_y)))
-                return color
+                return np.array(color)
             if plane.normal[0] > 0:
                 pixel_x = x % plane.texture.width
                 pixel_y = plane.texture.height - 1 - y % plane.texture.height
                 color = plane.texture.img.getpixel((int(pixel_x), int(pixel_y)))
-                return color
+                return np.array(color)
             
             if plane.normal[1] < 0:
                 pixel_x = x % plane.texture.width
                 pixel_y = plane.texture.height - 1 - y % plane.texture.height
                 color = plane.texture.img.getpixel((int(pixel_x), int(pixel_y)))
-                return color
+                return np.array(color)
             if plane.normal[1] > 0:
                 pixel_x = plane.texture.width - 1 - x % plane.texture.width
                 pixel_y = plane.texture.height - 1 - y % plane.texture.height
                 color = plane.texture.img.getpixel((int(pixel_x), int(pixel_y)))
-                return color
+                return np.array(color)
             
             if plane.normal[2] < 0:
                 pixel_x = plane.texture.width - 1 - x % plane.texture.width
                 pixel_y = plane.texture.height - 1 - y % plane.texture.height
                 color = plane.texture.img.getpixel((int(pixel_x), int(pixel_y)))
-                return color
+                return np.array(color)
             if plane.normal[2] > 0:
                 pixel_x = plane.texture.width - 1 - x % plane.texture.width
                 pixel_y = y % plane.texture.height
                 color = plane.texture.img.getpixel((int(pixel_x), int(pixel_y)))
-                return color
-                
+                return np.array(color)
+            
+            
+    def get_reflection_ray(self, ray, intersection, body):
+        if type(body) is Sphere:
+            normal_vector = self.normalize_vector(np.subtract(intersection, body.position))
+        else:
+            normal_vector = body.normal
+        ray = self.normalize_vector(ray)
+        reflection_ray = ray - 2 * np.dot(ray, normal_vector) * normal_vector
+        return reflection_ray     
         
             
     def render_scene(self, scene):
@@ -283,14 +307,73 @@ class Camera:
                         if rays_length_array[x][y] == 0 or rays_length_array[x][y] > ray_length:
                             rays_length_array[x][y] = ray_length
                             
-                            illumination = self.check_for_direct_illumination(intersection, body, scene)
-                            illumination = self.gamma_correction(illumination, self.gamma)
-                            if body.texture is not None:
-                                color = self.get_color_from_texture(body, intersection) * illumination / 255
+                            if body.reflectivity is not False:
+                                _ray = self.get_reflection_ray(ray, intersection, body)
+                                for _body in scene.all_bodies:
+                                    if _body == body:
+                                        continue
+                                    _intersection = self.check_for_ray_body_intersection(intersection, _ray, _body)
+                                    if _intersection is not False:
+                                        _ray_length = self.get_distance(_intersection, intersection)
+                                        if rays_length_array[x][y] == 0 or rays_length_array[x][y] > _ray_length:
+                                            rays_length_array[x][y] = _ray_length
+                                            
+                                            illumination = self.check_for_direct_illumination(_intersection, _body, scene)
+                                            illumination = self.gamma_correction(illumination, self.gamma)
+                                            if _body.texture is not None:
+                                                color = self.get_color_from_texture(_body, _intersection) * illumination / 255
+                                            else:
+                                                color = _body.color * illumination / 255
+                                            color = color * body.reflectivity + body.color * (1 - body.reflectivity)
+                                                
+                                            color = tuple(color.astype(int))
+                                            img.putpixel((x, y), color)
+                                
+                                # rays = [ray]
+                                # bodies = [body]
+                                # intersections = [intersection]
+                                # for reflection_index in range(self.max_reflections):
+                                #     rays.append(self.get_reflection_ray(rays[-1], intersections[-1], bodies[-1]))
+                                    
+                                #     for body in scene.all_bodies:
+                                #         if body == bodies[-1]:
+                                #             continue
+                                        
+                                #         i = self.check_for_ray_body_intersection(intersections[-1], rays[-1], body)
+                                #         if i is False:
+                                #             continue
+                                        
+                                #         reflection_ray_length = self.get_distance(intersections[-1], i)
+                                        
+                                #         if rays_length_array[x][y] == 0 or rays_length_array[x][y] > reflection_ray_length:
+                                #             rays_length_array[x][y] = reflection_ray_length
+                                #             if len(bodies) > reflection_index + 1:
+                                #                 bodies.pop(-1)
+                                #                 intersections.pop(-1)
+                                                
+                                #             bodies.append(body)
+                                #             intersections.append(i)
+                                            
+                                #             illumination = self.check_for_direct_illumination(intersections[-1], bodies[-1], scene)
+                                #             illumination = self.gamma_correction(illumination, self.gamma)
+                                #             if bodies[-1].texture is not None:
+                                #                 color = self.get_color_from_texture(bodies[-1], intersections[-1]) * illumination / 255
+                                #             else:
+                                #                 color = bodies[-1].color * illumination / 255
+                                            
+                                #     color = tuple(np.array(color).astype(int))
+                                #     img.putpixel((x, y), color)
+                                
                             else:
-                                color = body.color * illumination / 255
-                            color = tuple(color.astype(int))
-                            img.putpixel((x, y), color)
+                                illumination = self.check_for_direct_illumination(intersection, body, scene)
+                                illumination = self.gamma_correction(illumination, self.gamma)
+                                if body.texture is not None:
+                                    color = self.get_color_from_texture(body, intersection) * illumination / 255
+                                else:
+                                    color = body.color * illumination / 255
+                                    
+                                color = tuple(color.astype(int))
+                                img.putpixel((x, y), color)
         return img
         
 
@@ -315,35 +398,43 @@ def printProgressBar (progress, total, time_start):
         
 
 
-#* (resolution, FOV, pos, rotation, gamma)
-# camera = Camera((1600, 900), np.pi/2, (0,0,30), (0, 0, 0), 2.4)
-camera = Camera((320, 180), np.pi/2, (0,0,30), (0, 0, 0), 2.4)
+#* (resolution, FOV, pos, rotation, gamma, max_reflections)
+camera = Camera((1600, 900), np.pi/2, (0,0,30), (0, 0, 0), 2.4, 1)
+# camera = Camera((320, 180), np.pi/2, (0,0,30), (0, 0, 0), 2.4, 1)
 
 #* (radius, pos, color, reflectivity)
-sphere1 = Sphere(10, (-15,45,10), (0,255,0), 0)
-sphere2 = Sphere(10, (15,35,10), (255,0,255), 0)
+sphere1 = Sphere(10, (-10,45,10), (255,255,255), 0.95)
+sphere2 = Sphere(10, (20,35,10), (255,0,0), 0.8)
 
 #* (pos, brightness, color, FOV, normal)
 light_source1 = Light_source((0,30,50), 25, (255,255,255), np.pi*2, [0,0,-1])
 
 #* (filename, scale)
-texture_stone = Texture("stone.png", 1)
-texture_diamond = Texture("diamond_ore.png", 1)
-texture_redstone = Texture("redstone_ore.png", 1)
-texture_lapis = Texture("lapis_ore.png", 1)
+texture_stone = Texture("stone.png", 0.5)
+texture_diamond = Texture("diamond_ore.png", 0.5)
+texture_redstone = Texture("redstone_ore.png", 0.5)
+texture_lapis = Texture("lapis_ore.png", 0.5)
+texture_checkerboard = Texture("checkerboard.png", 2)
 
 #* (pos, norm, color, "texture")
-plane1 = Plane((0,0,0), (0,0,1), (155,155,155), texture_stone)
-plane2 = Plane((-32,0,0), (1,0,0), (255,0,0), texture_redstone)
-plane3 = Plane((0,64,0), (0,-1,0), (255,255,255), texture_diamond)
-plane4 = Plane((32,0,0), (-1,0,0), (0,0,255), texture_lapis)
-plane5 = Plane((0,0,64), (0,0,-1), (255,255,255), texture_stone)
+plane1 = Plane((0,0,0), (0,0,1), (155,155,155), False, texture_checkerboard)
+plane2 = Plane((-32,0,0), (1,0,0), (255,0,0), False, texture_redstone)
+plane3 = Plane((0,64,0), (0,-1,0), (255,255,255), False, texture_diamond)
+plane4 = Plane((32,0,0), (-1,0,0), (0,0,255), False, texture_lapis)
+# plane5 = Plane((0,0,64), (0,0,-1), (255,255,255), False, texture_stone)
+# plane6 = Plane((0,-32,0), (0,1,0), (255,255,255), False, texture_stone)
+
+# plane1 = Plane((0,0,0), (0,0,1), (155,155,155), False)
+# plane2 = Plane((-32,0,0), (1,0,0), (255,0,0), False)
+# plane3 = Plane((0,64,0), (0,-1,0), (0,255,0), False)
+# plane4 = Plane((32,0,0), (-1,0,0), (0,0,255), False)
+plane5 = Plane((0,0,64), (0,0,-1), (255,255,255), False)
+# plane6 = Plane((0,-0.1,0), (0,1,0), (255,255,255), False)
 
 scene = Scene([sphere1, sphere2], [plane1, plane2, plane3, plane4, plane5], [light_source1])
 
 
-
 img = camera.render_scene(scene)
 img.save("render.png", format="png")
-img = img.resize((1200, 675))
+# img = img.resize((1200, 675))
 img.show()
