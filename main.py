@@ -1,11 +1,7 @@
-from os import environ
-environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
-import time, os, numpy as np, random, sys, copy, pygame, pickle
-from PIL import Image, ImageDraw
-from struct import unpack
+import time, numpy as np
+from PIL import Image
 from colorama import Fore, init
 init()
-
 
 
 
@@ -171,20 +167,6 @@ class Camera:
     
     def normalize_vector(self, vector):
      return vector/np.linalg.norm(vector)
- 
- 
-    def get_img_average_color(self, img):
-        # color_list = []
-        # for pixel in img.getcolors():
-        #     color_list.append(pixel[1])
-        # color_list = np.array(color_list)
-        # color_sum = np.array([0,0,0])
-        # for pixel in color_list:
-        #     color_sum += pixel
-        # color = color_sum / len(color_list)
-        img = img.resize((1,1))
-        color = img.getpixel((0,0))
-        return color
         
     
     def check_for_direct_illumination(self, position, body, scene):
@@ -399,8 +381,8 @@ def printProgressBar (progress, total, time_start):
 
 
 #* (resolution, FOV, pos, rotation, gamma, max_reflections)
-camera = Camera((1600, 900), np.pi/2, (0,0,30), (0, 0, 0), 2.4, 1)
-# camera = Camera((320, 180), np.pi/2, (0,0,30), (0, 0, 0), 2.4, 1)
+# camera = Camera((1600, 900), np.pi/2, (0,0,30), (0, 0, 0), 2.4, 1)
+camera = Camera((320, 180), np.pi/2, (0,0,30), (0, 0, 0), 2.4, 1)
 
 #* (radius, pos, color, reflectivity)
 sphere1 = Sphere(10, (-10,45,10), (255,255,255), 0.95)
