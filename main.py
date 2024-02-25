@@ -274,11 +274,11 @@ class Camera:
     def render_scene(self, scene):
         img = Image.new("RGB", tuple(self.resolution), (0,0,0))
         rays_length_array = np.zeros(self.resolution)
-        print(f"{Fore.CYAN}Preparing rays:{Fore.RESET}")
+        print(f"{Fore.BLUE}Preparing rays:{Fore.RESET}")
         rays = self.generate_rays()
         
         time_start = time.time()
-        print(f"{Fore.CYAN}\nRendering:{Fore.RESET}")
+        print(f"{Fore.BLUE}\nRendering:{Fore.RESET}")
         for y, row in enumerate(rays):
             printProgressBar(y+1, self.resolution[1], time_start)
             for x, ray in enumerate(row):
@@ -310,41 +310,6 @@ class Camera:
                                                 
                                             color = tuple(color.astype(int))
                                             img.putpixel((x, y), color)
-                                
-                                # rays = [ray]
-                                # bodies = [body]
-                                # intersections = [intersection]
-                                # for reflection_index in range(self.max_reflections):
-                                #     rays.append(self.get_reflection_ray(rays[-1], intersections[-1], bodies[-1]))
-                                    
-                                #     for body in scene.all_bodies:
-                                #         if body == bodies[-1]:
-                                #             continue
-                                        
-                                #         i = self.check_for_ray_body_intersection(intersections[-1], rays[-1], body)
-                                #         if i is False:
-                                #             continue
-                                        
-                                #         reflection_ray_length = self.get_distance(intersections[-1], i)
-                                        
-                                #         if rays_length_array[x][y] == 0 or rays_length_array[x][y] > reflection_ray_length:
-                                #             rays_length_array[x][y] = reflection_ray_length
-                                #             if len(bodies) > reflection_index + 1:
-                                #                 bodies.pop(-1)
-                                #                 intersections.pop(-1)
-                                                
-                                #             bodies.append(body)
-                                #             intersections.append(i)
-                                            
-                                #             illumination = self.check_for_direct_illumination(intersections[-1], bodies[-1], scene)
-                                #             illumination = self.gamma_correction(illumination, self.gamma)
-                                #             if bodies[-1].texture is not None:
-                                #                 color = self.get_color_from_texture(bodies[-1], intersections[-1]) * illumination / 255
-                                #             else:
-                                #                 color = bodies[-1].color * illumination / 255
-                                            
-                                #     color = tuple(np.array(color).astype(int))
-                                #     img.putpixel((x, y), color)
                                 
                             else:
                                 illumination = self.check_for_direct_illumination(intersection, body, scene)
@@ -381,11 +346,11 @@ def printProgressBar (progress, total, time_start):
 
 
 #* (resolution, FOV, pos, rotation, gamma, max_reflections)
-# camera = Camera((1600, 900), np.pi/2, (0,0,30), (0, 0, 0), 2.4, 1)
+# camera = Camera((4096, 2160), np.pi/2, (0,0,30), (0, 0, 0), 2.4, 1)
 camera = Camera((320, 180), np.pi/2, (0,0,30), (0, 0, 0), 2.4, 1)
 
 #* (radius, pos, color, reflectivity)
-sphere1 = Sphere(10, (-10,45,10), (255,255,255), 0.95)
+sphere1 = Sphere(10, (-10,45,10), (0,0,255), 0.8)
 sphere2 = Sphere(10, (20,35,10), (255,0,0), 0.8)
 
 #* (pos, brightness, color, FOV, normal)
